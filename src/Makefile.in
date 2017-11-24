@@ -384,7 +384,8 @@ am__audacity_SOURCES_DIST = BlockFile.cpp BlockFile.h DirManager.cpp \
 	effects/EffectRack.cpp effects/EffectRack.h \
 	effects/Equalization.cpp effects/Equalization.h \
 	effects/Equalization48x.cpp effects/Equalization48x.h \
-	effects/Fade.cpp effects/Fade.h effects/FindClipping.cpp \
+	effects/Fade.cpp effects/Fade.h effects/KillClips.cpp \
+	effects/KillClips.h effects/FindClipping.cpp \
 	effects/FindClipping.h effects/Generator.cpp \
 	effects/Generator.h effects/Invert.cpp effects/Invert.h \
 	effects/LoadEffects.cpp effects/LoadEffects.h \
@@ -705,6 +706,7 @@ am_audacity_OBJECTS = $(am__objects_1) audacity-AboutDialog.$(OBJEXT) \
 	effects/audacity-Equalization.$(OBJEXT) \
 	effects/audacity-Equalization48x.$(OBJEXT) \
 	effects/audacity-Fade.$(OBJEXT) \
+	effects/audacity-KillClips.$(OBJEXT) \
 	effects/audacity-FindClipping.$(OBJEXT) \
 	effects/audacity-Generator.$(OBJEXT) \
 	effects/audacity-Invert.$(OBJEXT) \
@@ -1103,7 +1105,6 @@ LN_S = @LN_S@
 LTLIBICONV = @LTLIBICONV@
 LTLIBINTL = @LTLIBINTL@
 LTLIBOBJS = @LTLIBOBJS@
-LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 LV2_CFLAGS = @LV2_CFLAGS@
 LV2_LIBS = @LV2_LIBS@
 MAINT = @MAINT@
@@ -1129,8 +1130,6 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
-PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
-PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PORTAUDIO_CFLAGS = @PORTAUDIO_CFLAGS@
 PORTAUDIO_LIBS = @PORTAUDIO_LIBS@
 PORTMIDI_CFLAGS = @PORTMIDI_CFLAGS@
@@ -1399,7 +1398,8 @@ audacity_SOURCES = $(libaudacity_la_SOURCES) AboutDialog.cpp \
 	effects/EffectRack.cpp effects/EffectRack.h \
 	effects/Equalization.cpp effects/Equalization.h \
 	effects/Equalization48x.cpp effects/Equalization48x.h \
-	effects/Fade.cpp effects/Fade.h effects/FindClipping.cpp \
+	effects/Fade.cpp effects/Fade.h effects/KillClips.cpp \
+	effects/KillClips.h effects/FindClipping.cpp \
 	effects/FindClipping.h effects/Generator.cpp \
 	effects/Generator.h effects/Invert.cpp effects/Invert.h \
 	effects/LoadEffects.cpp effects/LoadEffects.h \
@@ -1855,6 +1855,8 @@ effects/audacity-Equalization.$(OBJEXT): effects/$(am__dirstamp) \
 effects/audacity-Equalization48x.$(OBJEXT): effects/$(am__dirstamp) \
 	effects/$(DEPDIR)/$(am__dirstamp)
 effects/audacity-Fade.$(OBJEXT): effects/$(am__dirstamp) \
+	effects/$(DEPDIR)/$(am__dirstamp)
+effects/audacity-KillClips.$(OBJEXT): effects/$(am__dirstamp) \
 	effects/$(DEPDIR)/$(am__dirstamp)
 effects/audacity-FindClipping.$(OBJEXT): effects/$(am__dirstamp) \
 	effects/$(DEPDIR)/$(am__dirstamp)
@@ -2540,6 +2542,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-FindClipping.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-Generator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-Invert.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-KillClips.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-LoadEffects.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-Noise.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@effects/$(DEPDIR)/audacity-NoiseReduction.Po@am__quote@
@@ -4831,6 +4834,20 @@ effects/audacity-Fade.obj: effects/Fade.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='effects/Fade.cpp' object='effects/audacity-Fade.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(audacity_CPPFLAGS) $(CPPFLAGS) $(audacity_CXXFLAGS) $(CXXFLAGS) -c -o effects/audacity-Fade.obj `if test -f 'effects/Fade.cpp'; then $(CYGPATH_W) 'effects/Fade.cpp'; else $(CYGPATH_W) '$(srcdir)/effects/Fade.cpp'; fi`
+
+effects/audacity-KillClips.o: effects/KillClips.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(audacity_CPPFLAGS) $(CPPFLAGS) $(audacity_CXXFLAGS) $(CXXFLAGS) -MT effects/audacity-KillClips.o -MD -MP -MF effects/$(DEPDIR)/audacity-KillClips.Tpo -c -o effects/audacity-KillClips.o `test -f 'effects/KillClips.cpp' || echo '$(srcdir)/'`effects/KillClips.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) effects/$(DEPDIR)/audacity-KillClips.Tpo effects/$(DEPDIR)/audacity-KillClips.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='effects/KillClips.cpp' object='effects/audacity-KillClips.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(audacity_CPPFLAGS) $(CPPFLAGS) $(audacity_CXXFLAGS) $(CXXFLAGS) -c -o effects/audacity-KillClips.o `test -f 'effects/KillClips.cpp' || echo '$(srcdir)/'`effects/KillClips.cpp
+
+effects/audacity-KillClips.obj: effects/KillClips.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(audacity_CPPFLAGS) $(CPPFLAGS) $(audacity_CXXFLAGS) $(CXXFLAGS) -MT effects/audacity-KillClips.obj -MD -MP -MF effects/$(DEPDIR)/audacity-KillClips.Tpo -c -o effects/audacity-KillClips.obj `if test -f 'effects/KillClips.cpp'; then $(CYGPATH_W) 'effects/KillClips.cpp'; else $(CYGPATH_W) '$(srcdir)/effects/KillClips.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) effects/$(DEPDIR)/audacity-KillClips.Tpo effects/$(DEPDIR)/audacity-KillClips.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='effects/KillClips.cpp' object='effects/audacity-KillClips.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(audacity_CPPFLAGS) $(CPPFLAGS) $(audacity_CXXFLAGS) $(CXXFLAGS) -c -o effects/audacity-KillClips.obj `if test -f 'effects/KillClips.cpp'; then $(CYGPATH_W) 'effects/KillClips.cpp'; else $(CYGPATH_W) '$(srcdir)/effects/KillClips.cpp'; fi`
 
 effects/audacity-FindClipping.o: effects/FindClipping.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(audacity_CPPFLAGS) $(CPPFLAGS) $(audacity_CXXFLAGS) $(CXXFLAGS) -MT effects/audacity-FindClipping.o -MD -MP -MF effects/$(DEPDIR)/audacity-FindClipping.Tpo -c -o effects/audacity-FindClipping.o `test -f 'effects/FindClipping.cpp' || echo '$(srcdir)/'`effects/FindClipping.cpp

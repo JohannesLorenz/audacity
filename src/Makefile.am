@@ -368,6 +368,8 @@ audacity_SOURCES = \
 	effects/Equalization48x.h \
 	effects/Fade.cpp \
 	effects/Fade.h \
+	effects/KillClips.cpp \
+	effects/KillClips.h \
 	effects/FindClipping.cpp \
 	effects/FindClipping.h \
 	effects/Generator.cpp \

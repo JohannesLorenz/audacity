@@ -28,6 +28,7 @@
 #include "Paulstretch.h"
 #include "Equalization.h"
 #include "Fade.h"
+#include "KillClips.h"
 #include "Invert.h"
 #include "Noise.h"
 #ifdef EXPERIMENTAL_NOISE_REDUCTION
@@ -120,6 +121,7 @@
    EFFECT( EQUALIZATION,      EffectEqualization, () )     \
    EFFECT( FADEIN,            EffectFade, (true) )         \
    EFFECT( FADEOUT,           EffectFade, (false) )        \
+   EFFECT( KILLCLIPS,         EffectKillClips, () )        \
    EFFECT( INVERT,            EffectInvert, () )           \
    EFFECT( NORMALIZE,         EffectNormalize, () )        \
    EFFECT( PHASER,            EffectPhaser, () )           \
