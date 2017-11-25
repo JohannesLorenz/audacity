@@ -33,9 +33,8 @@ BEGIN_EVENT_TABLE(EffectKillClips, wxEvtHandler)
     EVT_TEXT(wxID_ANY, EffectKillClips::OnText)
 END_EVENT_TABLE()
 
-EffectKillClips::EffectKillClips(bool fadeIn)
+EffectKillClips::EffectKillClips()
 {
-   mFadeIn = fadeIn;
 }
 
 EffectKillClips::~EffectKillClips()
@@ -51,9 +50,7 @@ wxString EffectKillClips::GetSymbol()
 
 wxString EffectKillClips::GetDescription()
 {
-   return mFadeIn
-      ? XO("Applies a linear fade-in to the selected audio")
-      : XO("Applies a linear fade-out to the selected audio");
+   return "Silences clips, fades in and out around that";
 }
 
 wxString EffectKillClips::ManualPage()
@@ -146,8 +143,6 @@ const sampleCount incsize = 16384;
 
 bool EffectKillClips::ProcessInitialize(sampleCount WXUNUSED(totalLen), ChannelNames WXUNUSED(chanMap))
 {
-   mSample = 0;
-   silence.clear();
    return true;
 }
 
@@ -270,7 +265,14 @@ bool EffectKillClips::ProcessOne(
          //printf("WHILE: ok: %d, last round: buffer=%lld, last_state=%d, it->start=%llu, s=%lld, block=%lld, itr->length=%lld\n",
          //        itr != silence[curTrackNum].end(),
          //        (long long)buffer.get(), last_state, itr->start.as_long_long(), s.as_long_long(), block, itr->length.as_long_long());
+      }
 
+      // The algorithm makes sure that everything is below mAmount, so normalize
+      const float mult = 1.0f / mAmount;
+      for(sampleCount i = 0; i < block; ++i)
+      {
+         buffer.get()[i.as_long_long()] *= mult;
+         assert(buffer.get()[i.as_long_long()] <= 1.0f);
       }
 
       //Copy the newly-changed samples back onto the track.
@@ -377,6 +379,9 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
 
 bool EffectKillClips::Process()
 {
+   // this should go to the initialize function, but it's not working...
+   silence.clear();
+
    //Iterate over each track
    this->CopyInputTracks(); // Set up mOutputTracks.
    bool bGoodResult = true;

@@ -22,7 +22,7 @@
 class EffectKillClips final : public Effect
 {
 public:
-   EffectKillClips(bool fadeIn = false);
+   EffectKillClips();
    virtual ~EffectKillClips();
 
    // IdentInterface implementation
@@ -85,8 +85,6 @@ private:
    double mCurT0;
    double mCurT1;
 
-   bool firstBlock;
-   bool mFadeIn;
    sampleCount mSample;
    sampleCount to_write;
    sampleCount okRemain;
