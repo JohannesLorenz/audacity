@@ -268,12 +268,12 @@ bool EffectKillClips::ProcessOne(
       }
 
       // The algorithm makes sure that everything is below mAmount, so normalize
-      const float mult = 1.0f / mAmount;
+/*      const float mult = 1.0f / mAmount;
       for(sampleCount i = 0; i < block; ++i)
       {
          buffer.get()[i.as_long_long()] *= mult;
          assert(buffer.get()[i.as_long_long()] <= 1.0f);
-      }
+      }*/
 
       //Copy the newly-changed samples back onto the track.
       track->Set((samplePtr) buffer.get(), floatSample, s, block);
