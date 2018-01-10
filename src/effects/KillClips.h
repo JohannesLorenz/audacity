@@ -80,16 +80,22 @@ private:
 
    std::map<int, std::vector<silence_t>> silence;
 
-   float mAmount;
+   float mMax, mMin;
+   int mSlowness;
 
    double mCurT0;
    double mCurT1;
 
+   // analyze
+   sampleCount okRemain;
+   sampleCount lowCounted;
+   sampleCount insertCount;
+   sampleCount oldPos;
+   sampleCount insertPos;
+
+   // process
    sampleCount mSample;
    sampleCount to_write;
-   sampleCount okRemain;
-   sampleCount oldPos;
-
    state_type last_state;
 
    DECLARE_EVENT_TABLE()

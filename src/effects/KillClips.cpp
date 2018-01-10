@@ -9,7 +9,7 @@
 *******************************************************************//**
 
 \class EffectKillClips
-\brief An Effect that reduces the volume to zero over  achosen interval.
+\brief An Effect that reduces the volume to zero over a chosen interval.
 
 *//*******************************************************************/
 
@@ -26,8 +26,10 @@
 
 // Define keys, defaults, minimums, and maximums for the effect parameters
 //
-//     Name    Type     Key                     Def      Min      Max      Scale
-Param( Amount, float,   XO("Percentage"),       0.5,     0.0,     1.0,     0.1);
+//     Name      Type     Key                  Def      Min      Max      Scale
+Param( Min,      float,   XO("Minimum"),       0.1,     0.0,     0.9,     0.01);
+Param( Max,      float,   XO("Maximum"),       0.7,     0.1,     1.0,     0.01);
+Param( Slowness, int,     XO("Slowness"),      14,      10,      16,         1);
 
 BEGIN_EVENT_TABLE(EffectKillClips, wxEvtHandler)
     EVT_TEXT(wxID_ANY, EffectKillClips::OnText)
@@ -62,16 +64,22 @@ wxString EffectKillClips::ManualPage()
 
 bool EffectKillClips::GetAutomationParameters(EffectAutomationParameters & parms)
 {
-   parms.WriteFloat(KEY_Amount, mAmount);
+   parms.WriteFloat(KEY_Min, mMin);
+   parms.WriteFloat(KEY_Max, mMax);
+   parms.Write(KEY_Slowness, mSlowness);
 
    return true;
 }
 
 bool EffectKillClips::SetAutomationParameters(EffectAutomationParameters & parms)
 {
-   ReadAndVerifyFloat(Amount);
+   ReadAndVerifyFloat(Min);
+   ReadAndVerifyFloat(Max);
+   ReadAndVerifyInt(Slowness);
 
-   mAmount = Amount;
+   mMin = Min;
+   mMax = Max;
+   mSlowness = Slowness;
 
    return true;
 }
@@ -80,14 +88,14 @@ void EffectKillClips::PopulateOrExchange(ShuttleGui &S)
 {
    S.StartMultiColumn(1, wxALIGN_CENTER);
    {
-      FloatingPointValidator<float> vldAmount(1, &mAmount);
-      vldAmount.SetMin(MIN_Amount);
-
-      /* i18n-hint: This is how many times longer the sound will be, e.g. applying
-       * the effect to a 1-second sample, with the default Stretch Factor of 10.0
-       * will give an (approximately) 10 second sound
-       */
-      S.AddTextBox(_("Stretch Factor:"), wxT(""), 10)->SetValidator(vldAmount);
+      FloatingPointValidator<float> vldMin(1, &mMin), vldMax(1, &mMax);
+      IntegerValidator<int> vldSlowness(&mSlowness);
+      vldMin.SetMin(MIN_Min);
+      vldMax.SetMin(MIN_Max);
+      vldSlowness.SetMin(MIN_Slowness);
+      S.AddTextBox(_("Minimum Level:"), wxT(""), 10)->SetValidator(vldMin);
+      S.AddTextBox(_("Maximum Level:"), wxT(""), 10)->SetValidator(vldMax);
+      S.AddTextBox(_("Slowness:"), wxT(""), 10)->SetValidator(vldSlowness);
    }
    S.EndMultiColumn();
 }
@@ -139,8 +147,6 @@ unsigned EffectKillClips::GetAudioOutCount()
    return 1;
 }
 
-const sampleCount incsize = 16384;
-
 bool EffectKillClips::ProcessInitialize(sampleCount WXUNUSED(totalLen), ChannelNames WXUNUSED(chanMap))
 {
    return true;
@@ -148,6 +154,8 @@ bool EffectKillClips::ProcessInitialize(sampleCount WXUNUSED(totalLen), ChannelN
 
 void EffectKillClips::DoFade(float *ibuf, unsigned long long len, sampleCount silence_len)
 {
+   const sampleCount incsize = 1 << mSlowness;
+
    if(last_state == state_normal || last_state == state_fade_out)
    {
       last_state = state_fade_out;
@@ -182,8 +190,6 @@ void EffectKillClips::DoFade(float *ibuf, unsigned long long len, sampleCount si
 // printf("STATE: %d\n", last_state);
 }
 
-//#include <iostream>
-
 ///////////////////////
 
 bool EffectKillClips::ProcessOne(
@@ -206,8 +212,9 @@ bool EffectKillClips::ProcessOne(
 
    std::vector<silence_t>::const_iterator itr = silence[curTrackNum].begin();
 
+   const sampleCount incsize = 1 << mSlowness;
+
    // initialize variables
-   okRemain = 0;
    if(silence[curTrackNum].size() && itr->start - start < incsize)
    {
       mSample = itr->start - start; // mSample will be 0 at itr->start
@@ -248,8 +255,6 @@ bool EffectKillClips::ProcessOne(
       //       (long long)buffer.get(), last_state, itr->start.as_long_long(), s.as_long_long(), block, itr->length.as_long_long());
       while(itr != silence[curTrackNum].end() && last_state == state_normal && itr->start - incsize < s+block)
       {
-         // printf("START,LEN: %llu, %llu\n", itr->start.as_long_long(), itr->length.as_long_long());
-
          // this assertion is usually true due to the while loop condition:
          //     itr->start - incsize      >= s + block (last round)
          // <=> -s + itr->start - incsize >= block (last round) = 0 (this round)
@@ -262,13 +267,13 @@ bool EffectKillClips::ProcessOne(
          if(last_state == state_normal) // silence has been finished this block
             ++itr;
 
-         //printf("WHILE: ok: %d, last round: buffer=%lld, last_state=%d, it->start=%llu, s=%lld, block=%lld, itr->length=%lld\n",
-         //        itr != silence[curTrackNum].end(),
-         //        (long long)buffer.get(), last_state, itr->start.as_long_long(), s.as_long_long(), block, itr->length.as_long_long());
+//         printf("WHILE: ok: %d, last round: buffer=%lld, last_state=%d, it->start=%llu, s=%lld, block=%lld, itr->length=%lld\n",
+//                 itr != silence[curTrackNum].end(),
+//                 (long long)buffer.get(), last_state, itr->start.as_long_long(), s.as_long_long(), block, itr->length.as_long_long());
       }
 
-      // The algorithm makes sure that everything is below mAmount, so normalize
-/*      const float mult = 1.0f / mAmount;
+      // The algorithm makes sure that everything is below mMax, so normalize
+/*      const float mult = 1.0f / mMax;
       for(sampleCount i = 0; i < block; ++i)
       {
          buffer.get()[i.as_long_long()] *= mult;
@@ -310,10 +315,19 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
    //Transform the marker timepoints to samples
    auto start = track->TimeToLongSamples(mCurT0);
    auto end = track->TimeToLongSamples(mCurT1);
+   auto len = (end - start).as_double();
 
    //Initiate a processing buffer.  This buffer will (most likely)
    //be shorter than the length of the track being processed.
    Floats buffer{ track->GetMaxBlockSize() };
+
+   // initialize variables
+   okRemain = 0;
+   lowCounted = 0;
+   insertCount = 0;
+
+   const sampleCount incsize = 1 << mSlowness;
+   const sampleCount incsize2 = incsize * 2;
 
    //Go through the track one buffer at a time. s counts which
    //sample the current buffer starts at.
@@ -330,29 +344,57 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
       track->Get((samplePtr) buffer.get(), floatSample, s, block);
       float* mbuffer = buffer.get();
 
+      /* we have 3 kinds of blocks:
+         * peaks +- incsize (and maybe also enough low values)
+         * enough low values (not +-incsize)
+         * pass
+      */
+
       decltype(s) blockEnd = s + block;
       for(decltype(s) pos = 0; pos < block;)
       {
-         if((!okRemain.as_long_long()) && fabs(mbuffer[pos.as_long_long()]) > mAmount)
+         // any new peak?
+         if((!okRemain.as_long_long()) && fabs(mbuffer[pos.as_long_long()]) > mMax)
          {
-            okRemain = incsize * 2;
+            okRemain = incsize2;
             oldPos = s + pos;
+
+            // as we enter the peak, flush lowCounted
+            if(!insertCount.as_long_long())
+               insertPos = oldPos;
+            insertCount += lowCounted;
+            lowCounted = 0;
          }
+
+         // new peak (from above, or from a previous block)
          if(okRemain.as_long_long())
          {
             for( ; (pos < block) && okRemain.as_long_long(); ++pos)
             {
-               if(fabs(mbuffer[pos.as_long_long()]) > mAmount)
+               if(fabs(mbuffer[pos.as_long_long()]) > mMax)
                {
-                  okRemain = incsize * 2;
+                  okRemain = incsize2;
                }
                else
+               {
                   --okRemain;
+                  if(fabs(mbuffer[pos.as_long_long()]) < mMin)
+                  {
+                     ++lowCounted;
+                  }
+                  else
+                  {
+                     lowCounted=0;
+                  }
+               }
             }
 
+            // all peaks are passed
             if(!okRemain.as_long_long())
             {
-               silence[curTrackNum].emplace_back(oldPos, s + pos - oldPos - ( 2 * incsize));
+               if(!insertCount.as_long_long())
+                  insertPos = oldPos;
+               insertCount += s + pos - oldPos - incsize2;
                /*printf("emplacing silence:     start: %lld (%lf), length: %lld\n",
                       oldPos.as_long_long(),
                       track->LongSamplesToTime(oldPos),
@@ -360,18 +402,55 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
             }
          }
          else
+         {
+            if(fabs(mbuffer[pos.as_long_long()]) < mMin)
+            {
+               ++lowCounted;
+            }
+            else
+            {
+               if(lowCounted > incsize2)
+               {
+                  if(!insertCount.as_long_long()) {
+                     insertPos = s + pos - lowCounted + incsize; // use oldpos here, too?
+                  }
+                  insertCount += lowCounted - incsize2;
+                  assert(insertPos >= 0);
+               }
+               lowCounted=0;
+
+               if(insertCount.as_long_long())
+               {
+                  assert(insertPos >= 0);
+
+                  // if this and the previous silence were to close, append to
+                  // the previous one
+                  if(silence[curTrackNum].size() && silence[curTrackNum].back().start + silence[curTrackNum].back().length + incsize2 >= insertPos)
+                  {
+                     auto& back = silence[curTrackNum].back();
+                     back.length = insertPos - back.start + insertCount;
+                  }
+                  else
+                  {
+                     silence[curTrackNum].emplace_back(insertPos, insertCount);
+                  }
+                  insertCount = 0;
+               }
+            }
             ++pos;
+         }
       }
 
       //Increment s one blockfull of samples
       s = blockEnd;
 
-/*      //Update the Progress meter
+
+      //Update the Progress meter
       if (TrackProgress(curTrackNum,
                         0.5+((s - start).as_double() / len)/2.0, msg)) {
-         rc = false; //lda .. break, not return, so that buffer is deleted
-         break;
-      }*/
+/*         rc = false; //lda .. break, not return, so that buffer is deleted
+         break;*/ /* - not supported yet - */
+      }
    }
 
    return true;
