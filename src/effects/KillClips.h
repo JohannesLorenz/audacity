@@ -50,11 +50,9 @@ public:
 
 // new:
    bool Process() override;
-   bool ProcessOne(
-      WaveTrack * t, const wxString &msg, int curTrackNum, float offset);
+   bool ProcessOne(WaveTrack * t, const wxString &msg, int curTrackNum);
    bool AnalyseTrack(const WaveTrack * track, const wxString &msg,
-                  int curTrackNum,
-                  float &offset, float &min, float &max);
+                  int curTrackNum);
 
 private:
    // EffectKillClipsIn implementation
@@ -67,24 +65,27 @@ private:
       state_fade_in
    };
 
-   void DoFade(float *ibuf, unsigned long long len, sampleCount silence_len);
+   void DoFade(float *ibuf, unsigned long long len, sampleCount silence_len,
+               float reduction);
 
    void OnText(wxCommandEvent & evt);
 
    struct silence_t {
       sampleCount start;
       sampleCount length;
-      silence_t(sampleCount start, sampleCount length) :
-         start(start), length(length) {}
+      float reduction;
+      silence_t(sampleCount start, sampleCount length, float reduction) :
+         start(start), length(length), reduction(reduction) {}
    };
 
    std::map<int, std::vector<silence_t>> silence;
 
-   float mMax, mMin;
+   float mMax, mMin, mHigh;
    int mSlowness;
 
    double mCurT0;
    double mCurT1;
+   int curOverMax;
 
    // analyze
    sampleCount okRemain;

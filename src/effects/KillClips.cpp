@@ -28,7 +28,8 @@
 //
 //     Name      Type     Key                  Def      Min      Max      Scale
 Param( Min,      float,   XO("Minimum"),       0.1,     0.0,     0.9,     0.01);
-Param( Max,      float,   XO("Maximum"),       0.7,     0.1,     1.0,     0.01);
+Param( High,     float,   XO("High"),          0.6,     0.0,     1.0,     0.01);
+Param( Max,      float,   XO("Maximum"),       0.7,     0.0,     1.0,     0.01);
 Param( Slowness, int,     XO("Slowness"),      14,      10,      16,         1);
 
 BEGIN_EVENT_TABLE(EffectKillClips, wxEvtHandler)
@@ -65,6 +66,7 @@ wxString EffectKillClips::ManualPage()
 bool EffectKillClips::GetAutomationParameters(EffectAutomationParameters & parms)
 {
    parms.WriteFloat(KEY_Min, mMin);
+   parms.WriteFloat(KEY_High, mHigh);
    parms.WriteFloat(KEY_Max, mMax);
    parms.Write(KEY_Slowness, mSlowness);
 
@@ -74,10 +76,12 @@ bool EffectKillClips::GetAutomationParameters(EffectAutomationParameters & parms
 bool EffectKillClips::SetAutomationParameters(EffectAutomationParameters & parms)
 {
    ReadAndVerifyFloat(Min);
+   ReadAndVerifyFloat(High);
    ReadAndVerifyFloat(Max);
    ReadAndVerifyInt(Slowness);
 
    mMin = Min;
+   mHigh = High;
    mMax = Max;
    mSlowness = Slowness;
 
@@ -88,12 +92,16 @@ void EffectKillClips::PopulateOrExchange(ShuttleGui &S)
 {
    S.StartMultiColumn(1, wxALIGN_CENTER);
    {
-      FloatingPointValidator<float> vldMin(1, &mMin), vldMax(1, &mMax);
+      FloatingPointValidator<float> vldMin(1, &mMin),
+                                    vldHigh(1, &mHigh),
+                                    vldMax(1, &mMax);
       IntegerValidator<int> vldSlowness(&mSlowness);
       vldMin.SetMin(MIN_Min);
+      vldHigh.SetMin(MIN_High);
       vldMax.SetMin(MIN_Max);
       vldSlowness.SetMin(MIN_Slowness);
       S.AddTextBox(_("Minimum Level:"), wxT(""), 10)->SetValidator(vldMin);
+      S.AddTextBox(_("High Level:"), wxT(""), 10)->SetValidator(vldHigh);
       S.AddTextBox(_("Maximum Level:"), wxT(""), 10)->SetValidator(vldMax);
       S.AddTextBox(_("Slowness:"), wxT(""), 10)->SetValidator(vldSlowness);
    }
@@ -152,16 +160,19 @@ bool EffectKillClips::ProcessInitialize(sampleCount WXUNUSED(totalLen), ChannelN
    return true;
 }
 
-void EffectKillClips::DoFade(float *ibuf, unsigned long long len, sampleCount silence_len)
+void EffectKillClips::DoFade(float *ibuf, unsigned long long len,
+                             sampleCount silence_len, float reduction)
 {
    const sampleCount incsize = 1 << mSlowness;
+   float reduction_m = 1.0f - reduction;
 
    if(last_state == state_normal || last_state == state_fade_out)
    {
       last_state = state_fade_out;
       for (; (mSample.as_long_long() > 0) && len; --len, ++ibuf)
       {
-         *ibuf *= ( mSample-- ).as_float() / incsize.as_float();
+         *ibuf *= reduction +
+                  reduction_m * ( mSample-- ).as_float() / incsize.as_float();
       }
       if(!mSample.as_long_long()) {
          to_write = silence_len;
@@ -173,7 +184,7 @@ void EffectKillClips::DoFade(float *ibuf, unsigned long long len, sampleCount si
       assert(to_write.as_long_long());
       for (; (to_write.as_long_long() > 0) && len; --len, ++ibuf, --to_write)
       {
-         *ibuf = 0.0f;
+         *ibuf *= reduction;
       }
       if(!to_write.as_long_long())
          last_state = state_fade_in;
@@ -182,7 +193,8 @@ void EffectKillClips::DoFade(float *ibuf, unsigned long long len, sampleCount si
    {
       for (; (mSample < incsize) && len; --len, ++ibuf)
       {
-         *ibuf *= ( mSample++ ).as_float() / incsize.as_float();
+         *ibuf *= reduction +
+                  reduction_m * ( mSample++ ).as_float() / incsize.as_float();
       }
       if(mSample == incsize)
          last_state = state_normal;
@@ -193,7 +205,7 @@ void EffectKillClips::DoFade(float *ibuf, unsigned long long len, sampleCount si
 ///////////////////////
 
 bool EffectKillClips::ProcessOne(
-   WaveTrack * track, const wxString &msg, int curTrackNum, float offset)
+   WaveTrack * track, const wxString &msg, int curTrackNum)
 {
    bool rc = true;
 
@@ -245,7 +257,7 @@ bool EffectKillClips::ProcessOne(
       // not yet finished over block border?
       if(last_state != state_normal)
       {
-         DoFade(buffer.get(), block, itr->length);
+         DoFade(buffer.get(), block, itr->length, itr->reduction);
          if(last_state == state_normal) // silence has been finished this block
             ++itr;
       }
@@ -263,7 +275,7 @@ bool EffectKillClips::ProcessOne(
 
          DoFade(buffer.get() - s.as_long_long() + itr->start.as_long_long() - incsize.as_long_long(),
                 block - itr->start.as_long_long() + s.as_long_long() + incsize.as_long_long(),
-                itr->length);
+                itr->length, itr->reduction);
          if(last_state == state_normal) // silence has been finished this block
             ++itr;
 
@@ -299,8 +311,7 @@ bool EffectKillClips::ProcessOne(
 }
 
 bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
-                                   int curTrackNum,
-                                   float &offset, float &min, float &max)
+                                   int curTrackNum)
 {
    // Since we need complete summary data, we need to block until the OD tasks are done for this track
    // TODO: should we restrict the flags to just the relevant block files (for selections)
@@ -325,6 +336,7 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
    okRemain = 0;
    lowCounted = 0;
    insertCount = 0;
+   curOverMax = 0;
 
    const sampleCount incsize = 1 << mSlowness;
    const sampleCount incsize2 = incsize * 2;
@@ -354,7 +366,7 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
       for(decltype(s) pos = 0; pos < block;)
       {
          // any new peak?
-         if((!okRemain.as_long_long()) && fabs(mbuffer[pos.as_long_long()]) > mMax)
+         if((!okRemain.as_long_long()) && fabs(mbuffer[pos.as_long_long()]) > mHigh)
          {
             okRemain = incsize2;
             oldPos = s + pos;
@@ -371,14 +383,21 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
          {
             for( ; (pos < block) && okRemain.as_long_long(); ++pos)
             {
-               if(fabs(mbuffer[pos.as_long_long()]) > mMax)
+               float absval = fabs(mbuffer[pos.as_long_long()]);
+
+               if(absval > mMax)
+               {
+                  curOverMax = 1;
+               }
+
+               if(absval > mHigh)
                {
                   okRemain = incsize2;
                }
                else
                {
                   --okRemain;
-                  if(fabs(mbuffer[pos.as_long_long()]) < mMin)
+                  if(absval < mMin)
                   {
                      ++lowCounted;
                   }
@@ -432,7 +451,10 @@ bool EffectKillClips::AnalyseTrack(const WaveTrack * track, const wxString &msg,
                   }
                   else
                   {
-                     silence[curTrackNum].emplace_back(insertPos, insertCount);
+                     silence[curTrackNum].emplace_back(insertPos, insertCount,
+                                                       curOverMax ? 0.0f
+                                                                  : mHigh);
+                     curOverMax = 0;
                   }
                   insertCount = 0;
                }
@@ -490,9 +512,7 @@ bool EffectKillClips::Process()
 
          msg = topMsg + _("Analyzing Clips: ") + trackName;
 
-         float offset, min, max;
-         if (! ( bGoodResult =
-                 AnalyseTrack(track, msg, curTrackNum, offset, min, max) ) )
+         if (! ( bGoodResult = AnalyseTrack(track, msg, curTrackNum) ) )
              break;
          if(!track->GetLinked()) {
             // mono or 'stereo tracks independently'
@@ -500,7 +520,7 @@ bool EffectKillClips::Process()
             if(track->GetLinked() || prevTrack->GetLinked())  // only get here if there is a linked track but we are processing independently
                msg = topMsg + _("Processing stereo channels independently: ") + trackName;
 
-            if (!ProcessOne(track, msg, curTrackNum, offset))
+            if (!ProcessOne(track, msg, curTrackNum))
             {
                bGoodResult = false;
                break;
@@ -513,14 +533,12 @@ bool EffectKillClips::Process()
             // as they are needed to calc the multiplier for both tracks
             track = (WaveTrack *) iter.Next();  // get the next one
             msg = topMsg + _("Analyzing second track of stereo pair: ") + trackName;
-            float offset2, min2, max2;
-            if ( ! ( bGoodResult =
-                     AnalyseTrack(track, msg, curTrackNum + 1, offset2, min2, max2) ) )
+            if ( ! ( bGoodResult = AnalyseTrack(track, msg, curTrackNum + 1) ) )
                 break;
 
             track = (WaveTrack *) iter.Prev();  // go back to the first linked one
             msg = topMsg + _("Processing first track of stereo pair: ") + trackName;
-            if (!ProcessOne(track, msg, curTrackNum, offset))
+            if (!ProcessOne(track, msg, curTrackNum))
             {
                bGoodResult = false;
                break;
@@ -528,7 +546,7 @@ bool EffectKillClips::Process()
             track = (WaveTrack *) iter.Next();  // go to the second linked one
             curTrackNum++;   // keeps progress bar correct
             msg = topMsg + _("Processing second track of stereo pair: ") + trackName;
-            if (!ProcessOne(track, msg, curTrackNum, offset2))
+            if (!ProcessOne(track, msg, curTrackNum))
             {
                bGoodResult = false;
                break;
